@@ -2,13 +2,14 @@
     <head>
         <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+        <script type="text/javascript">
+          google.load("visualization", "1", {packages:["corechart"]});
+        </script>
+
     </head>
     <body>
-
         <div id="holestats"></div>
-
-
-
     </body>
 <script>
     function start () {
@@ -35,11 +36,58 @@
             html += getBestScores(i, data);
             html += "<br>";
             html += getBestPlayers(i, data);
+            html += "<br>";
+            html += '<div id="hole' + i + '" style="width: 700px;"></div>';
+            html += "<hr>";
 
         }
 
         $("#holestats").html(html);
+
+        for (i = 1; i < 19; i++) {
+            drawChart(i, data);
+        }
+
     }
+
+    function drawChart (hole, data) {
+
+        var par = getPar(hole, data);
+
+        var stats = {};
+        data.leaderboard.entries.forEach(function (entry) {
+            _.each(entry.scorecards, function (sc) {
+                var score = parseInt(sc.scorecard.holescore[hole], 10);
+                var toPar = score - par;
+                if (!stats[toPar]) {
+                    stats[toPar] = 0;
+                }
+                stats[toPar] += 1;
+            });
+        });
+
+        var arr = [['To Par', 'Count']];
+        for (var i = -par + 1; i < 6; i++) {
+            var count = stats[i + ""];
+                var label = i + "";
+                if (i > 0) {
+                    label = "+" + i;
+                } else if (i == 0) {
+                    label = "Par";
+                }
+                arr.push([label, count || 0]);
+        }
+
+        var data = google.visualization.arrayToDataTable(arr);
+
+        var options = {
+          title: 'Scores',
+          vAxis: {minValue: 0}
+        };
+
+        var chart = new google.visualization.AreaChart(document.getElementById('hole' + hole));
+        chart.draw(data, options);
+     }
 
     function getPar (hole, data) {
         return _.find(data.leaderboard.rounds[0].course.holes, function (h) {
