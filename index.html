@@ -12,7 +12,11 @@
     </body>
 <script>
     function start () {
-        $.get("so2015_men_singles.json",
+        var url = "so2015_men_singles.json";
+        if (window.location.hash == "#women") {
+            url = "so2015_women_singles.json";
+        }
+        $.get(url,
             function (data) {
                 holescores(data);
                 console.log("Data", data);
@@ -22,6 +26,7 @@
 
     function holescores (data) {
         var html = "";
+        html += '<a href="?women#women">Women</a> | <a href="?men#men">Men</a><br><br>';
         for (var i = 1; i < 19; i++) {
             var par = getPar(i, data);
             html += "<h1>Hole " + i + " - Par " + par + "</h1>";
