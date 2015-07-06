@@ -91,9 +91,12 @@
 
         var html = "Best average:<br>";
 
-        for (var i = 0; i < 10; i++) {
+        var lastAvg = best[0].avg;
+        for (var i = 0; i < best.length; i++) {
             var p = best[i];
-            html += p.avg.toFixed(2) + " (" + p.scores.join(", ") + ") " + p.player.name + "<br>";
+            if (p.avg == lastAvg) {
+                html += p.avg.toFixed(2) + " (" + p.scores.join(", ") + ") " + p.player.name + "<br>";
+            }
         }
 
         return html;
@@ -117,7 +120,7 @@
 
         best = _.sortBy(best, "score");
 
-        var html = "Best scores:<br>";
+        var html = "Best score:<br>";
 
         var lastP = best[0].score;
         for (var i = 0; i < 15; i++) {
