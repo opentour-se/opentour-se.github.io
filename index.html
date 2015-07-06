@@ -1,0 +1,141 @@
+<html>
+    <head>
+        <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    </head>
+    <body>
+
+        <div id="holestats"></div>
+
+
+
+    </body>
+<script>
+    function start () {
+        $.get("so2015_men_singles.json",
+            function (data) {
+                holescores(data);
+                console.log("Data", data);
+            }
+        );
+    }
+
+    function holescores (data) {
+        var html = "";
+        for (var i = 1; i < 19; i++) {
+            var par = getPar(i, data);
+            html += "<h1>Hole " + i + " - Par " + par + "</h1>";
+            html += getScoreAverage(i, data);
+            html += "<br>";
+            html += getBestScores(i, data);
+            html += "<br>";
+            html += getBestPlayers(i, data);
+
+        }
+
+        $("#holestats").html(html);
+    }
+
+    function getPar (hole, data) {
+        return _.find(data.leaderboard.rounds[0].course.holes, function (h) {
+            return h.number == hole;
+        }).par;
+    }
+
+    function getScoreAverage (hole, data) {
+        var par = getPar(hole, data);
+        var total = 0;
+        var num = 0;
+        data.leaderboard.entries.forEach(function (entry) {
+            _.each(entry.scorecards, function (sc) {
+                total += parseInt(sc.scorecard.holescore[hole], 10);
+                num++;
+            });
+        });
+
+        var avg = (total / num);
+        var diff = (avg - par).toFixed(2);
+        if (diff.substr(0, 1) != "-") {
+            diff = "+" + diff;
+        }
+
+        return "Score average: " + avg.toFixed(2) + " (" + diff + ")<br>";
+
+    }
+
+
+    function getBestPlayers(hole, data) {
+        var par = getPar(hole, data);
+
+        var best = [];
+        data.leaderboard.entries.forEach(function (entry) {
+            var scores = [];
+            _.each(entry.scorecards, function (sc) {
+                var scoreOnHole = parseInt(sc.scorecard.holescore[hole], 10);
+                scores.push(scoreOnHole);
+            });
+            var tot = 0;
+            scores.forEach(function (score) {
+                tot += score;
+            });
+            var avg = tot / scores.length;
+            best.push({player: entry.player, avg: avg, scores: scores});
+        });
+
+        best = _.sortBy(best, "avg");
+
+        var html = "Best average:<br>";
+
+        for (var i = 0; i < 10; i++) {
+            var p = best[i];
+            html += p.avg.toFixed(2) + " (" + p.scores.join(", ") + ") " + p.player.name + "<br>";
+        }
+
+        return html;
+    }
+
+
+    function getBestScores(hole, data) {
+        var best = [];
+        var par = getPar(hole, data);
+
+        data.leaderboard.entries.forEach(function (entry) {
+            _.each(entry.scorecards, function (sc) {
+                var scoreOnHole = parseInt(sc.scorecard.holescore[hole], 10);
+                best.push({player: entry.player, score: scoreOnHole});
+            });
+        });
+
+        if (best.length === 0) {
+            return "";
+        }
+
+        best = _.sortBy(best, "score");
+
+        var html = "Best scores:<br>";
+
+        var lastP = best[0].score;
+        for (var i = 0; i < 15; i++) {
+            var p = best[i];
+            if (p && lastP === p.score) {
+                var scorename = p.score;
+                if (p.score == 1) {
+                    scorename = "Hole in one";
+                } else if (p.score + 2 == par) {
+                    scorename = "Eagle";
+                } else if (p.score + 3 == par) {
+                    scorename = "Albatross";
+                } else if (p.score + 1 == par) {
+                    scorename = "Birdie";
+                }
+
+                html += scorename + " - " + p.player.name + "<br>";
+            }
+        }
+
+        return html;
+    }
+
+    $(start);
+</script>
+</html>
