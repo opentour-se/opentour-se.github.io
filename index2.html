@@ -1,0 +1,211 @@
+<html>
+    <head>
+        <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+        <script type="text/javascript">
+          google.load("visualization", "1", {packages:["corechart"]});
+        </script>
+
+    </head>
+    <body style="font-family: arial;">
+        <div id="holestats"></div>
+    </body>
+<script>
+    function start () {
+        var url = "co2015.json";
+        $.get(url,
+            function (data) {
+                holescores(data);
+                console.log("Data", data);
+            }
+        );
+    }
+
+    function holescores (data) {
+        var html = "";
+        _.each(["F", "P"], function (course) {
+
+            for (var i = 1; i < 19; i++) {
+                var par = getPar(i, course);
+                html += "<h1>Course: " + course + " Hole " + i + " - Par " + par + "</h1>";
+                //html += getScoreAverage(i, data[course]);
+                html += "<br>";
+                html += '<div id="hole' + i + course + '"></div>';
+                html += "<hr>";
+
+            }
+
+
+        });
+        $("#holestats").html(html);
+
+        _.each(["F", "P"], function (course) {
+            for (i = 1; i < 19; i++) {
+                drawChart(i, course, data[course]);
+            }
+        });
+
+
+
+
+
+    }
+
+    function drawChart (hole, course, data) {
+
+        var par = getPar(hole, course);
+        var maxScore = 0;
+        var stats = {};
+        var numScores = data[hole].length;
+        data[hole].forEach(function (holescore) {
+
+                var score = parseInt(holescore, 10);
+                if (score > maxScore) {
+                    maxScore = score;
+                }
+                var toPar = score - par;
+                if (!stats[toPar]) {
+                    stats[toPar] = 0;
+                }
+                stats[toPar] += 1;
+
+        });
+
+        var arr = [['To Par', 'Count']];
+        for (var i = -par + 1; i <= maxScore - par; i++) {
+            var count = stats[i + ""] || 0;
+                var label = i + "";
+                if (i > 0) {
+                    label = "+" + i;
+                } else if (i == 0) {
+                    label = "Par";
+                }
+                var p = (count / numScores) * 100;
+                var percentage = " (" + p.toFixed(p < 10 && p > 0 ? 1 : 0) + "%)";
+
+                arr.push([label + percentage, count || 0]);
+        }
+
+        var data = google.visualization.arrayToDataTable(arr);
+
+        var options = {
+          title: 'Scores',
+            width: "100%",
+          vAxis: {minValue: 0}
+        };
+
+        var chart = new google.visualization.AreaChart(document.getElementById('hole' + hole + course));
+        chart.draw(data, options);
+     }
+
+    function getPar (hole, course) {
+
+        var pars = {
+            "F": [0, 4, 4, 4, 4, 4, 3, 5, 5, 4, 3, 3, 3, 3, 5, 6, 3, 4, 5],
+            "P": [0, 4, 3, 5, 3, 4, 3, 5, 6, 3, 5, 4, 5, 4, 5, 3, 3, 4, 3]
+        };
+        return pars[course][hole];
+
+    }
+
+    function getScoreAverage (hole, data) {
+        var par = getPar(hole, data);
+        var total = 0;
+        var num = 0;
+        data.leaderboard.entries.forEach(function (entry) {
+            _.each(entry.scorecards, function (sc) {
+                total += parseInt(sc.scorecard.holescore[hole], 10);
+                num++;
+            });
+        });
+
+        var avg = (total / num);
+        var diff = (avg - par).toFixed(2);
+        if (diff.substr(0, 1) != "-") {
+            diff = "+" + diff;
+        }
+
+        return "Score average: " + avg.toFixed(2) + " (" + diff + ")<br>";
+
+    }
+
+
+    function getBestPlayers(hole, data) {
+        var par = getPar(hole, data);
+
+        var best = [];
+        data.leaderboard.entries.forEach(function (entry) {
+            var scores = [];
+            _.each(entry.scorecards, function (sc) {
+                var scoreOnHole = parseInt(sc.scorecard.holescore[hole], 10);
+                scores.push(scoreOnHole);
+            });
+            var tot = 0;
+            scores.forEach(function (score) {
+                tot += score;
+            });
+            var avg = tot / scores.length;
+            best.push({player: entry.player, avg: avg, scores: scores});
+        });
+
+        best = _.sortBy(best, "avg");
+
+        var html = "Best average:<br>";
+
+        var lastAvg = best[0].avg;
+        for (var i = 0; i < best.length; i++) {
+            var p = best[i];
+            if (p.avg == lastAvg) {
+                html += p.avg.toFixed(2) + " (" + p.scores.join(", ") + ") " + p.player.name + "<br>";
+            }
+        }
+
+        return html;
+    }
+
+
+    function getBestScores(hole, data) {
+        var best = [];
+        var par = getPar(hole, data);
+
+        data.leaderboard.entries.forEach(function (entry) {
+            _.each(entry.scorecards, function (sc) {
+                var scoreOnHole = parseInt(sc.scorecard.holescore[hole], 10);
+                best.push({player: entry.player, score: scoreOnHole});
+            });
+        });
+
+        if (best.length === 0) {
+            return "";
+        }
+
+        best = _.sortBy(best, "score");
+
+        var html = "Best score:<br>";
+
+        var lastP = best[0].score;
+        for (var i = 0; i < 15; i++) {
+            var p = best[i];
+            if (p && lastP === p.score) {
+                var scorename = p.score;
+                if (p.score == 1) {
+                    scorename = "Hole in one";
+                } else if (p.score + 2 == par) {
+                    scorename = "Eagle";
+                } else if (p.score + 3 == par) {
+                    scorename = "Albatross";
+                } else if (p.score + 1 == par) {
+                    scorename = "Birdie";
+                }
+
+                html += scorename + " - " + p.player.name + "<br>";
+            }
+        }
+
+        return html;
+    }
+
+    $(start);
+</script>
+</html>
